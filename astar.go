@@ -3,23 +3,7 @@ package pathfinding
 type Map interface {
 	GetWidth() int
 	GetHeight() int
-	IsBlock(x, y int) bool
-}
-
-const (
-	COST_STRAIGHT = 1000
-	COST_DIAGONAL = 1414
-)
-
-var adjust8_ = [][3]int{
-	{-1, -1, COST_DIAGONAL},
-	{-1, 0, COST_STRAIGHT},
-	{-1, 1, COST_DIAGONAL},
-	{0, -1, COST_STRAIGHT},
-	{0, 1, COST_STRAIGHT},
-	{1, -1, COST_DIAGONAL},
-	{1, 0, COST_STRAIGHT},
-	{1, 1, COST_DIAGONAL},
+	GetNeighbors(x int, y int) [][3]int
 }
 
 type Evaluation func(from *Node, to *Node) int
@@ -28,7 +12,6 @@ type Evaluation func(from *Node, to *Node) int
 func AStar(mapData Map, startX, startY, stopX, stopY int, eval Evaluation) []*Node {
 	closedSet := newNodeList(mapData.GetWidth(), mapData.GetHeight())
 	openSet := newNodeList(mapData.GetWidth(), mapData.GetHeight())
-	adjust := adjust8_
 	pq := make(PriorityQueue, 0, mapData.GetWidth()*mapData.GetHeight()) // heap, used to find minF
 
 	freeSet := newNodeList(mapData.GetWidth(), mapData.GetHeight())
@@ -47,9 +30,11 @@ func AStar(mapData Map, startX, startY, stopX, stopY int, eval Evaluation) []*No
 			return retracePath(current)
 		}
 
-		for _, dir := range adjust {
-			x := current.X + dir[0]
-			y := current.Y + dir[1]
+		for _, pos := range mapData.GetNeighbors(current.X, current.Y) {
+			x := pos[0]
+			y := pos[1]
+			cost := current.cost + pos[2]
+
 			if (x < 0) || (x >= mapData.GetWidth()) || (y < 0) || (y >= mapData.GetHeight()) {
 				//地图外的点不做处理
 				continue
@@ -58,13 +43,8 @@ func AStar(mapData Map, startX, startY, stopX, stopY int, eval Evaluation) []*No
 				//close表中的节点
 				continue
 			}
-			if mapData.IsBlock(x, y) {
-				//阻挡点
-				continue
-			}
 
 			neighbor := freeSet.createNode(x, y)
-			cost := current.cost + dir[2]
 			if !openSet.hasNode(neighbor) {
 				//插入Open表中
 				neighbor.parent = current

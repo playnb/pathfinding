@@ -10,6 +10,22 @@ import (
 	"testing"
 )
 
+const (
+	COST_STRAIGHT = 1000
+	COST_DIAGONAL = 1414
+)
+
+var adjust8_ = [][3]int{
+	{-1, -1, COST_DIAGONAL},
+	{-1, 0, COST_STRAIGHT},
+	{-1, 1, COST_DIAGONAL},
+	{0, -1, COST_STRAIGHT},
+	{0, 1, COST_STRAIGHT},
+	{1, -1, COST_DIAGONAL},
+	{1, 0, COST_STRAIGHT},
+	{1, 1, COST_DIAGONAL},
+}
+
 type MapData struct {
 	width  int
 	height int
@@ -27,6 +43,18 @@ func (md *MapData) IsBlock(x, y int) bool {
 		return md.data[x+y*md.width] > 0
 	}
 	return true
+}
+func (md *MapData) GetNeighbors(x int, y int) [][3]int {
+	var ret [][3]int
+	for _, v := range adjust8_ {
+		px := x + v[0]
+		py := y + v[1]
+		if md.IsBlock(px, py) {
+			continue
+		}
+		ret = append(ret, [3]int{px, py, v[2]})
+	}
+	return ret
 }
 
 func loadMapData(filename string) *MapData {
@@ -67,7 +95,7 @@ func saveMapData(filename string, md *MapData) {
 			case 1:
 				nrgba.Set(x, y, color.RGBA{0, 0, 0, 255})
 			case 2:
-				nrgba.Set(x, y, color.RGBA{100, 100, 0, 255})
+				nrgba.Set(x, y, color.RGBA{200, 100, 0, 255})
 
 			}
 		}
@@ -84,6 +112,26 @@ func TestAStar(t *testing.T) {
 		return mathex.MaxInt(mathex.AbsInt(from.X-to.X), mathex.AbsInt(from.Y-to.Y))
 	})
 
+	if path != nil {
+		for _, n := range path {
+			md.data[n.X+n.Y*md.width] = 2
+		}
+		saveMapData("image/path.png", md)
+	} else {
+		fmt.Println("No way...")
+	}
+}
+
+func BenchmarkAStar(b *testing.B) {
+	md := loadMapData("image/map.png")
+	var path []*Node
+	b.Run("AStar", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			path = AStar(md, 0, 0, 70, 70, func(from *Node, to *Node) int {
+				return 1000 * (mathex.MaxInt(mathex.AbsInt(from.X-to.X), mathex.AbsInt(from.Y-to.Y)))
+			})
+		}
+	})
 	if path != nil {
 		for _, n := range path {
 			md.data[n.X+n.Y*md.width] = 2
